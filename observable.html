@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>@Observable · Observations · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="concurrency.html">Anterior</a></li>
+    <li><a href="optimizations.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.2</span>
+    <h1>@Observable · Observations</h1>
+    <p class="intro">De ObservableObject + @Published + Cancellable a una sola macro. Sin Combine.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>Antes — tres conceptos para un modelo observable</h2>
+    <p>Para hacer un objeto observable en SwiftUI necesitabas: ObservableObject, @Published en cada propiedad que querías observar, y Cancellable para gestionar subscripciones en UIKit. Olvidarse de @Published en una propiedad era un bug silencioso.</p>
+    <p class="code-label before">Swift 5 / iOS 13-16 — el problema</p>
+    <pre><code class="language-swift">// Swift 5 / iOS 13-16 — con Combine
+import Combine
+
+final class CartModel: ObservableObject {
+    @Published var itemCount = 0    // ← @Published en CADA propiedad
+    @Published var total = 0.0      // ← sin @Published → SwiftUI no reacciona
+    var internalState = false       // ← sin @Published, intencional
+    // Si olvidas @Published en una propiedad que debería serlo → bug silencioso
+}
+
+// En UIKit — subscripción manual con Cancellable
+var cancellables = Set&lt;AnyCancellable>()
+
+model.$itemCount
+    .sink { [weak self] count in
+        self?.updateBadge(count)
+    }
+    .store(in: &amp;cancellables)  // ← sin esto → memory leak garantizado
+// Además: no funciona con structs, solo con clases</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — @Observable</h2>
+    <p>Una sola macro convierte todas las propiedades stored en observables automáticamente. Sin Combine, sin @Published, sin Cancellable. SwiftUI re-renderiza solo las vistas que leen propiedades que han cambiado.</p>
+    <p class="code-label after">Swift 5.9+ / iOS 17+ — la solución</p>
+    <pre><code class="language-swift">// Swift 5.9+ / iOS 17+ — con @Observable
+import Observation
+
+@Observable
+final class CartModel {
+    // Todas las propiedades stored son observables automáticamente
+    var itemCount = 0
+    var total = 0.0
+    // Sin @Published, sin ObservableObject, sin Combine
+}
+
+// En SwiftUI — sin cambios, simplemente funciona
+struct CartView: View {
+    let cart: CartModel
+
+    var body: some View {
+        // SwiftUI observa exactamente las propiedades que esta vista LEE.
+        // Si cambia itemCount pero esta vista no lo usa → no se re-renderiza.
+        Text("Total: \(cart.total, format: .currency(code: "EUR"))")
+    }
+}
+
+// En Swift 6.2 — Observations como AsyncSequence (macOS 26+)
+// Stream continuo de cambios, transaccional:
+// for await snapshot in Observations { (cart.itemCount, cart.total) } {
+//     print("Items: \(snapshot.0), total: \(snapshot.1)")
+// }
+// Si cambian los dos en el mismo ciclo → una sola emisión (transaccional)</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> La diferencia clave en SwiftUI: @Published notificaba que "algo cambió en el modelo" y SwiftUI re-renderizaba todo. @Observable rastrea qué propiedades lee cada vista y solo re-renderiza las afectadas.</p>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Lo que desaparece con @Observable</h2>
+    <p>ObservableObject en la declaración del modelo. @Published en cada propiedad. AnyCancellable y .store(in: &amp;cancellables) en UIKit. .sink { } para observar cambios. Las subscripciones manuales. Funciona con structs, no solo clases.</p>
+  </div>
+
+  <nav class="pagination">
+    <a href="concurrency.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      Approachable Concurrency
+    </a>
+    <a href="optimizations.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      Optimizaciones →
+    </a>
+  </nav>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

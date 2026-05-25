@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Approachable Concurrency · @concurrent · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="task-groups.html">Anterior</a></li>
+    <li><a href="observable.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.2</span>
+    <h1>Approachable Concurrency · @concurrent</h1>
+    <p class="intro">@concurrent declara explícitamente dónde corre una función. Named tasks son visibles en LLDB e Instruments.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>El problema — nonisolated async era ambiguo</h2>
+    <p>En Swift 6.0, cuando marcabas una función async como nonisolated, no quedaba claro en qué executor iba a correr. Dependía del contexto del caller de formas no siempre obvias. Y las tasks eran anónimas — invisibles en Instruments.</p>
+    <p class="code-label before">Swift 6.0 — el problema</p>
+    <pre><code class="language-swift">// Swift 6.0 — nonisolated async: ¿dónde corre esto exactamente?
+nonisolated func fetchData(at url: URL) async throws -> Data {
+    // ¿Corre en el executor del caller? ¿En el pool global?
+    // Dependía del contexto. Era fácil hacer suposiciones incorrectas.
+    let (data, _) = try await URLSession.shared.data(from: url)
+    return data
+}
+
+// Tasks anónimas — invisibles en herramientas de debugging
+let task = Task {
+    try await fetchData(at: url)
+    // En Instruments: "Task" sin nombre. Con decenas de tasks,
+    // imposible saber cuál es cuál.
+}</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — @concurrent explícito + named tasks</h2>
+    <p>@concurrent declara sin ambigüedad que la función siempre corre en el executor global concurrente, independientemente del caller. Task(name:) da nombre a las tasks para debugging y profiling.</p>
+    <p class="code-label after">Swift 6.2 — la solución</p>
+    <pre><code class="language-swift">@MainActor
+struct ImageStore {
+    static var cache: [URL: Data] = [:]
+
+    // Sin anotación: hereda el aislamiento del caller (@MainActor aquí)
+    static func create(from url: URL) async throws -> Data {
+        if let cached = cache[url] { return cached }
+        let data = try await fetchData(at: url)  // sale al background
+        cache[url] = data
+        return data
+    }
+
+    // @concurrent: SIEMPRE en el pool global, nunca en el MainActor
+    // Antes: nonisolated con semántica incierta
+    // Ahora: explícito, sin ambigüedad
+    @concurrent
+    static func fetchData(at url: URL) async throws -> Data {
+        let (data, _) = try await URLSession.shared.data(from: url)
+        return data
+    }
+}
+
+// Named tasks: nombre visible en LLDB, Instruments y crash reports
+let prefetch = Task(name: "prefetch-home-feed") {
+    try await HomeRepository.shared.prefetch()
+}
+// En Instruments → la task aparece etiquetada "prefetch-home-feed"
+// En LLDB: thread info → "Task: prefetch-home-feed"</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> La regla de Swift 6.2 es simple — sin anotación hereda el contexto del caller, @concurrent siempre va al pool global, @MainActor siempre al hilo principal.</p>
+  </div>
+
+  <div class="block fade-in">
+    <table class="rule-table">
+      <thead><tr><th>Anotación</th><th>Dónde corre</th></tr></thead>
+      <tbody>
+        <tr><td>(ninguna)</td><td>hereda el aislamiento del caller</td></tr>
+        <tr><td>@concurrent</td><td>siempre en el pool global de threads (background)</td></tr>
+        <tr><td>@MainActor</td><td>siempre en el hilo principal</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <nav class="pagination">
+    <a href="task-groups.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      Task groups · Trailing commas
+    </a>
+    <a href="observable.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      @Observable · Observations →
+    </a>
+  </nav>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

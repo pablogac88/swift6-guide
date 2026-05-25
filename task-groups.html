@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task groups · Trailing commas · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="nonisolated.html">Anterior</a></li>
+    <li><a href="concurrency.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.1</span>
+    <h1>Task groups · Trailing commas</h1>
+    <p class="intro">El compilador infiere el tipo en task groups. Trailing comma válida en argumentos, tuplas y closures.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>Antes — el tipo era obligatorio y la coma final daba error</h2>
+    <p>withTaskGroup requería especificar el tipo de las child tasks con of:. Era ruido puro cuando el tipo era obvio. Y una coma al final de una lista de argumentos era error de sintaxis.</p>
+    <p class="code-label before">Swift 6.0 — el problema</p>
+    <pre><code class="language-swift">// Swift 6.0 — of: Message.self obligatorio
+let messages = await withTaskGroup(of: Message.self) { group in
+    //                             ^^^^^^^^^^^^^^^^
+    //                             Sin esto → error de compilación.
+    //                             En tipos complejos resultaba muy verboso:
+    //   withTaskGroup(of: (String, [Article], UserProfile).self)
+    for id in ids {
+        group.addTask { await downloadMessage(for: id) }
+    }
+    var result: [Message] = []
+    for await message in group { result.append(message) }
+    return result
+}
+
+// Coma final → error de sintaxis en Swift 5.x / 6.0:
+numbers.split(
+    separator: 0,
+    maxSplits: 1   // ← no podías añadir la coma aquí sin error
+)</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — inferencia de tipo y trailing commas</h2>
+    <p>Swift 6.1 infiere el tipo de las child tasks desde el closure. of: ya no hace falta. Y las trailing commas son válidas en argumentos, tuplas y closure capture lists.</p>
+    <p class="code-label after">Swift 6.1 — la solución</p>
+    <pre><code class="language-swift">// Swift 6.1 — sin of:, el tipo se infiere del closure
+let messages = await withTaskGroup { group in
+    for id in ids {
+        group.addTask { await downloadMessage(for: id) }
+    }
+    var result: [Message] = []
+    for await message in group { result.append(message) }
+    return result
+}
+
+// Trailing comma en argumentos — válida en Swift 6.1
+numbers.split(
+    separator: 0,
+    maxSplits: 1,   // ← trailing comma válida
+)
+
+// Trailing comma en tupla — válida en Swift 6.1
+let info = (
+    user.id,
+    user.name,      // ← trailing comma válida
+)</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> Las trailing commas parecen pequeñas, pero hacen que añadir un argumento en un diff solo toque una línea, no dos. Macros y generación de código lo agradecen especialmente.</p>
+  </div>
+
+  <nav class="pagination">
+    <a href="nonisolated.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      nonisolated extension
+    </a>
+    <a href="concurrency.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      Approachable Concurrency →
+    </a>
+  </nav>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

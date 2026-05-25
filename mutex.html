@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mutex · Synchronization · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="actor.html">Anterior</a></li>
+    <li><a href="typed-throws.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.0</span>
+    <h1>Mutex · Synchronization</h1>
+    <p class="intro">El dato vive dentro del lock. No hay forma de tocarlo sin adquirirlo primero.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>Antes — el lock y el dato eran dos objetos separados</h2>
+    <p>NSLock, os_unfair_lock, DispatchQueue... todos tenían el mismo problema: el estado protegido y el mecanismo de protección eran dos cosas distintas. Nada impedía acceder al dato sin pasar por el lock.</p>
+    <p class="code-label before">Swift 5.x — el problema</p>
+    <pre><code class="language-swift">// Opción 1 — NSLock (Objective-C legacy)
+class Cache {
+    private var storage: [String: String] = [:]
+    private let lock = NSLock()
+
+    func save(_ value: String, key: String) {
+        lock.lock()
+        defer { lock.unlock() }  // fácil de olvidar
+        storage[key] = value
+    }
+
+    func otraFuncion() {
+        storage["x"] = "y"  // ← acceso directo sin lock → race
+        // El compilador no dice nada
+    }
+}
+
+// Opción 2 — DispatchQueue serial
+class Cache2 {
+    private var storage: [String: String] = [:]
+    private let queue = DispatchQueue(label: "cache")
+
+    func save(_ value: String, key: String) {
+        queue.sync { storage[key] = value }  // correcto
+    }
+
+    func otra() {
+        storage["x"] = "y"  // ← race silencioso, sin warning
+    }
+}</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — el dato vive dentro del lock</h2>
+    <p>Mutex&lt;Value> encapsula el estado dentro del lock. No existe ninguna forma de leer o escribir el dato sin pasar por withLock. No es un acuerdo de honor — es la estructura del tipo.</p>
+    <p class="code-label after">Swift 6.x — la solución</p>
+    <pre><code class="language-swift">import Synchronization
+
+final class Cache: @unchecked Sendable {
+    // El dict vive DENTRO del Mutex.
+    // No hay ninguna forma de acceder a él sin withLock.
+    private let storage = Mutex&lt;[String: String]>([:])
+
+    func save(_ value: String, key: String) {
+        storage.withLock { state in
+            state[key] = value
+        }
+        // withLock: adquiere el lock → ejecuta → libera
+        // aunque haya un error, el lock se libera igual
+    }
+
+    func value(for key: String) -> String? {
+        storage.withLock { $0[key] }
+    }
+}</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> La diferencia fundamental: con Mutex es físicamente imposible tocar el dato sin adquirir el lock. El compilador garantiza el acceso, no tu memoria.</p>
+  </div>
+
+  <div class="block fade-in">
+    <h2>¿Cuándo usar Mutex en lugar de actor?</h2>
+    <p>Usa actor cuando puedas. Usa Mutex cuando necesites sincronización síncrona — dentro de un init, deinit, o código que no puede tener puntos de suspensión async. También es la opción natural para interoperabilidad con código C o C++.</p>
+
+    <table class="rule-table">
+      <thead><tr><th>Herramienta</th><th>Cuándo</th></tr></thead>
+      <tbody>
+        <tr><td>actor</td><td>código async de app, view models, managers</td></tr>
+        <tr><td>Mutex</td><td>sincronización síncrona, sistemas, interop C/C++</td></tr>
+        <tr><td>NSLock</td><td>solo en código legacy Objective-C</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <nav class="pagination">
+    <a href="actor.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      Actor · Strict Concurrency
+    </a>
+    <a href="typed-throws.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      Typed throws →
+    </a>
+  </nav>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

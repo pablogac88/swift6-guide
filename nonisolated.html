@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>nonisolated extension · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="productivity.html">Anterior</a></li>
+    <li><a href="task-groups.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.1</span>
+    <h1>nonisolated extension</h1>
+    <p class="intro">Una sola declaración para toda la extensión en lugar de repetir nonisolated en cada método.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>El problema — @MainActor contaminaba todo el tipo</h2>
+    <p>En Swift 6.0, si un tipo era @MainActor, el compilador asumía que todos sus métodos — incluso los de protocolos como Equatable — solo podían ejecutarse en el hilo principal. Comparar dos IDs no tiene nada que ver con la UI, pero el compilador lo exigía igual.</p>
+    <p class="code-label before">Swift 6.0 — el problema</p>
+    <pre><code class="language-swift">// Swift 6.0 — @MainActor en el tipo contamina todos los métodos
+@MainActor
+struct UserViewState {
+    let id: Int
+    let name: String
+}
+
+// ERROR: para llamar a == hay que estar en el @MainActor
+// → await obligatorio para una comparación trivial
+extension UserViewState: Equatable {
+    static func ==(lhs: Self, rhs: Self) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+// Solución en Swift 6.0: nonisolated en cada método por separado
+extension UserViewState: CustomStringConvertible, Equatable {
+    nonisolated var description: String { "id: \(id)" }
+    nonisolated static func ==(lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+    nonisolated var isValid: Bool { id > 0 }
+    // Repetitivo si tienes muchos miembros
+}</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — nonisolated en la extensión completa</h2>
+    <p>nonisolated extension aplica nonisolated a todos los miembros a la vez. El resultado es idéntico — el compilador lo trata igual — pero sin repetición.</p>
+    <p class="code-label after">Swift 6.1 — la solución</p>
+    <pre><code class="language-swift">@MainActor
+struct UserViewState {
+    let id: Int
+    let name: String
+}
+
+// Swift 6.1 — una sola declaración para toda la extensión
+nonisolated extension UserViewState: CustomStringConvertible, Equatable {
+    var description: String { "UserViewState(id: \(id), name: \(name))" }
+    static func ==(lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+    var isValid: Bool { id > 0 }
+    // Todos los miembros son nonisolated — sin repetir la palabra
+}
+
+// Ahora se pueden llamar desde cualquier contexto sin await:
+let a = UserViewState(id: 1, name: "Pablo")
+let b = UserViewState(id: 1, name: "García")
+print(a == b)          // ✓ sin await
+print(a.description)   // ✓ sin await</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> nonisolated extension es la forma de decirle al compilador "esta parte del tipo es lógica pura, no UI — déjame usarla desde cualquier sitio sin obligarme al hilo principal".</p>
+  </div>
+
+  <div class="block fade-in">
+    <h2>¿Cuándo es seguro?</h2>
+    <p>El compilador verifica automáticamente que lo que lees sea accesible desde fuera del actor. La regla real es cuándo puede haber una escritura simultánea:</p>
+
+    <table class="rule-table">
+      <thead><tr><th>Caso</th><th>Seguro</th></tr></thead>
+      <tbody>
+        <tr><td>struct + let</td><td>Sí — copia inmutable, nadie puede cambiarla</td></tr>
+        <tr><td>struct + var</td><td>Sí — cada contexto tiene su propia copia</td></tr>
+        <tr><td>class + let</td><td>Sí — instancia compartida pero inmutable</td></tr>
+        <tr><td>class + var</td><td>No — instancia compartida y mutable → race posible</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <nav class="pagination">
+    <a href="productivity.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      Productividad
+    </a>
+    <a href="task-groups.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      Task groups · Trailing commas →
+    </a>
+  </nav>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Productividad · count(where:) · Pack iteration · Int128 · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="ownership.html">Anterior</a></li>
+    <li><a href="nonisolated.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.0</span>
+    <h1>Productividad · count(where:) · Pack iteration · Int128</h1>
+    <p class="intro">Tres cosas que hacías con más código o con librerías externas. Ahora en la librería estándar.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>count(where:) — sin array intermedio</h2>
+    <p>filter { }.count creaba un array completo en memoria solo para contar. count(where:) hace un único recorrido sin alocar nada extra.</p>
+    <p class="code-label before">Swift 5.x — el problema</p>
+    <pre><code class="language-swift">// Swift 5 — filter crea un array intermedio en memoria
+let numbers = [1, 2, 3, 4, 5, 6]
+let evenCount = numbers.filter { $0.isMultiple(of: 2) }.count
+//                       ↑ crea [2, 4, 6, 8, 10] en memoria
+//                                    luego cuenta — dos pasos, una alocación</code></pre>
+    <p class="code-label after">Swift 6.x — la solución</p>
+    <pre><code class="language-swift">// Swift 6 — un solo recorrido, sin alocación extra
+let evenCount = numbers.count(where: { $0.isMultiple(of: 2) })
+// Lee cada elemento una vez y cuenta los que cumplen la condición.
+// Semánticamente claro: "cuenta los que cumplan esto"</code></pre>
+  </div>
+
+  <hr>
+
+  <div class="block fade-in">
+    <h2>Pack iteration — adiós a las sobrecargas manuales</h2>
+    <p>En Swift 5, funciones como zip() o SwiftUI ViewBuilder tenían hasta 10 sobrecargas manuales — una por cada número de argumentos. Con parameter packs, una sola función cubre todos los casos.</p>
+    <p class="code-label before">Swift 5.x — el problema</p>
+    <pre><code class="language-swift">// Swift 5 — una sobrecarga por cada número de argumentos (insostenible)
+func allEmpty(_ a: [Any]) -> Bool { a.isEmpty }
+func allEmpty(_ a: [Any], _ b: [Any]) -> Bool { a.isEmpty &amp;&amp; b.isEmpty }
+func allEmpty(_ a: [Any], _ b: [Any], _ c: [Any]) -> Bool {
+    a.isEmpty &amp;&amp; b.isEmpty &amp;&amp; c.isEmpty
+}
+// ¿Y si alguien pasa 4, 5, 6 arrays? Hay que seguir añadiendo sobrecargas.
+// Así está hecho zip(), SwiftUI ViewBuilder, etc — con hasta 10 sobrecargas.</code></pre>
+    <p class="code-label after">Swift 6.x — la solución</p>
+    <pre><code class="language-swift">// Swift 6 — una sola función para cualquier número de tipos distintos
+func allEmpty&lt;each T>(_ arrays: repeat [each T]) -> Bool {
+    //         ──────                ──────────
+    //     pack de tipos         uno por cada T
+    for array in repeat each arrays {
+        guard array.isEmpty else { return false }
+    }
+    return true
+}
+
+let a: [Int]    = []
+let b: [String] = []
+let c: [Double] = [3.14]
+
+allEmpty(a, b)      // → true
+allEmpty(a, b, c)   // → false (c no está vacío)
+// Una sola función cubre 2, 3, 4... N argumentos de tipos completamente distintos</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> each T no es un tipo — es una colección de tipos. repeat expande el pack igual que un bucle for, pero en tiempo de compilación.</p>
+  </div>
+
+  <hr>
+
+  <div class="block fade-in">
+    <h2>Int128 / UInt128 — sin librerías externas</h2>
+    <p>Antes necesitabas una librería de terceros o hacer malabares con dos Int64. Ahora Int128 y UInt128 son tipos de primera clase en la librería estándar.</p>
+    <p class="code-label before">Swift 5.x — el problema</p>
+    <pre><code class="language-swift">// Swift 5 — sin Int128 nativo
+// Opciones: librería BigInt, Foundation.Decimal (coma flotante, no entero),
+// o implementarlo tú mismo con dos Int64. Ninguna era elegante.
+import Foundation
+let bigNumber = Decimal(string: "170141183460469231731687303715884105727")!
+// Decimal es coma flotante, no entero. No es lo mismo.</code></pre>
+    <p class="code-label after">Swift 6.x — la solución</p>
+    <pre><code class="language-swift">// Swift 6 — tipos nativos de primera clase
+let bigA: Int128  = 170_141_183_460_469_231_731_687_303_715_884_105_727
+let bigB: UInt128 = 340_282_366_920_938_463_463_374_607_431_768_211_455
+
+// Soportan todos los operadores normales: +, -, *, /, Comparable, Hashable...
+let suma = bigA + 1
+let esMayor = bigA > Int128.zero
+
+print(bigA)  // 170141183460469231731687303715884105727</code></pre>
+  </div>
+
+  <nav class="pagination">
+    <a href="ownership.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      Ownership · ~Copyable
+    </a>
+    <a href="nonisolated.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      nonisolated extension →
+    </a>
+  </nav>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

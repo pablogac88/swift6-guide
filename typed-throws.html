@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Typed throws · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="mutex.html">Anterior</a></li>
+    <li><a href="ownership.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.0</span>
+    <h1>Typed throws</h1>
+    <p class="intro">Las funciones declaran exactamente qué tipo de error lanzan. El catch recibe el tipo directamente, sin casting manual.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>Antes — throws borraba el tipo del error</h2>
+    <p>En Swift 5, throws siempre era throws(any Error). El compilador no sabía qué podía fallar. El catch obligaba a castear manualmente y a añadir un caso genérico que nunca se ejecutaba.</p>
+    <p class="code-label before">Swift 5.x — el problema</p>
+    <pre><code class="language-swift">// Swift 5 — throws lanza any Error, tipo borrado
+func parseRecord(from string: String) throws -> String {
+    guard string.hasPrefix("REC:") else {
+        throw ParseError.invalidHeader  // tipo concreto...
+    }
+    return String(string.dropFirst(4))
+}
+
+do {
+    let record = try parseRecord(from: input)
+    print(record)
+} catch let error as ParseError {  // ← casting manual siempre
+    switch error {
+    case .invalidHeader:   print("cabecera inválida")
+    case .invalidPayload:  print("payload inválido")
+    }
+} catch {
+    // Este bloque era OBLIGATORIO aunque nunca se ejecutara.
+    // El compilador no sabía que solo podía llegar ParseError.
+    print("Error inesperado: \(error)")  // dead code real
+}</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — throws(ConcreteType)</h2>
+    <p>Con throws(ParseError), el compilador sabe exactamente qué puede fallar. El catch recibe ParseError directamente. No hay casting, no hay bloque genérico obligatorio.</p>
+    <p class="code-label after">Swift 6.x — la solución</p>
+    <pre><code class="language-swift">enum ParseError: Error {
+    case invalidHeader
+    case invalidPayload(String)
+}
+
+// throws(ParseError) — el compilador sabe exactamente qué puede salir
+func parseRecord(from string: String) throws(ParseError) -> String {
+    guard string.hasPrefix("REC:") else {
+        throw .invalidHeader  // tipo inferido del contexto, sin ParseError.
+    }
+    let payload = String(string.dropFirst(4))
+    guard !payload.isEmpty else {
+        throw .invalidPayload("payload vacío")
+    }
+    return payload
+}
+
+do {
+    let record = try parseRecord(from: "REC:Hola")
+    print(record)
+} catch {
+    // error ES ParseError directamente — sin casting
+    // No hay catch genérico obligatorio
+    switch error {
+    case .invalidHeader:          print("cabecera inválida")
+    case .invalidPayload(let msg): print("payload: \(msg)")
+    }
+}</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> throws sin tipo equivale a throws(any Error) — comportamiento Swift 5. Una función no-throwing equivale a throws(Never). Con tipos concretos, el compilador puede optimizar más y tú escribes menos.</p>
+  </div>
+
+  <div class="block fade-in">
+    <h2>En genéricos — propagación del tipo de error</h2>
+    <p>La novedad más potente es en funciones genéricas. Antes era imposible propagar el tipo de error de un closure — se borraba a any Error. Ahora E es un parámetro genérico del error.</p>
+    <p class="code-label">Swift 6.x — genéricos con typed throws</p>
+    <pre><code class="language-swift">// Antes (rethrows): el tipo del error se borraba a any Error
+// Ahora: E propaga el tipo exacto del closure
+
+extension Sequence {
+    func mapValues&lt;T, E>(
+        _ transform: (Element) throws(E) -> T
+    ) throws(E) -> [T] {
+        var result: [T] = []
+        for element in self {
+            result.append(try transform(element))
+        }
+        return result
+    }
+}
+
+// Si el closure lanza ParseError → mapValues lanza ParseError
+// Si el closure no lanza (E == Never) → mapValues tampoco lanza
+let raw = ["REC:Uno", "REC:Dos"]
+let parsed = try raw.mapValues { try parseRecord(from: $0) }
+// catch recibe ParseError directamente</code></pre>
+  </div>
+
+  <nav class="pagination">
+    <a href="mutex.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      Mutex · Synchronization
+    </a>
+    <a href="ownership.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      Ownership · ~Copyable →
+    </a>
+  </nav>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

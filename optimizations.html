@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>@specialize · @inline · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="observable.html">Anterior</a></li>
+    <li><a href="index.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.3</span>
+    <h1>@specialize · @inline</h1>
+    <p class="intro">Hints al compilador para código performance-crítico. Para autores de librerías y hot paths.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>Antes — las funciones genéricas tenían overhead de indirección</h2>
+    <p>Las funciones genéricas en Swift se compilan una vez usando witness tables — tablas de punteros a las implementaciones de los protocolos. En cada operación hay una indirección. El CPU no puede optimizar tan agresivamente como con tipos concretos.</p>
+    <p class="code-label before">Sin @specialize — overhead de witness table</p>
+    <pre><code class="language-swift">// Sin @specialize — una sola versión genérica con witness table overhead
+func sum&lt;T: Numeric>(_ values: [T]) -> T {
+    values.reduce(.zero, +)
+    // En runtime: + se llama a través de una witness table
+    // Indirección → el CPU no puede hacer SIMD, loop unrolling, etc.
+}
+
+// Para todos los tipos → misma versión, mismo overhead
+sum([1, 2, 3])          // Int → witness table
+sum([1.1, 2.2, 3.3])    // Double → witness table</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — @_specialize e @inline</h2>
+    <p>@_specialize genera una versión del código especializada para un tipo concreto — sin witness table, sin indirección. @inline(__always) incrusta el código en el sitio de llamada. @inline(never) hace lo contrario para error paths.</p>
+    <p class="code-label after">Swift 6.3 — la solución</p>
+    <pre><code class="language-swift">// @_specialize: genera versión especializada para Int
+// La versión genérica sigue existiendo para otros tipos
+@_specialize(where T == Int)
+func sum&lt;T: Numeric>(_ values: [T]) -> T {
+    values.reduce(.zero, +)
+}
+
+// Para Int → código especializado, sin indirección, el CPU puede optimizar
+// Para Double → versión genérica normal
+sum([1, 2, 3])       // → versión especializada Int
+sum([1.1, 2.2])      // → versión genérica Double
+
+// @inline(__always): el código se inserta en el sitio de llamada
+// Sin overhead de call/ret. La función no existe como símbolo en el binario.
+@inline(__always)
+func square(_ x: Int) -> Int { x * x }
+
+// @inline(never): nunca se incrusta, siempre es una llamada real
+// Útil para error paths — no contamina los hot paths con código de error
+@inline(never)
+func handleCriticalError(_ error: Error) {
+    // Este código nunca se mezcla con el hot path del caller
+}</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> Estas herramientas son para autores de librerías y código performance-crítico. En app code normal el compilador ya hace un buen trabajo con whole-module optimization.</p>
+  </div>
+
+  <div class="block fade-in">
+    <table class="rule-table">
+      <thead><tr><th>Atributo</th><th>Efecto</th></tr></thead>
+      <tbody>
+        <tr><td>@_specialize(where T == Int)</td><td>genera versión especializada para ese tipo concreto, sin witness table</td></tr>
+        <tr><td>@inline(__always)</td><td>siempre incrusta el código en el sitio de llamada, sin overhead de función</td></tr>
+        <tr><td>@inline(never)</td><td>nunca incrusta, útil para error paths y debugging</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <nav class="pagination">
+    <a href="observable.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      @Observable · Observations
+    </a>
+    <a href="index.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      Inicio →
+    </a>
+  </nav>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

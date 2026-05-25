@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ownership · ~Copyable · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="typed-throws.html">Anterior</a></li>
+    <li><a href="productivity.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.0</span>
+    <h1>Ownership · ~Copyable</h1>
+    <p class="intro">Tipos que no se pueden duplicar. El compilador garantiza que un recurso se usa exactamente una vez.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>Antes — todo era copiable, los recursos se podían duplicar</h2>
+    <p>En Swift 5, todos los tipos son copiables por defecto. No había forma de modelar un recurso que solo puede usarse una vez. Los file handles, tokens y sockets podían duplicarse accidentalmente — el compilador no podía detectarlo.</p>
+    <p class="code-label before">Swift 5.x — el problema</p>
+    <pre><code class="language-swift">// Swift 5 — nada impide usar el token dos veces
+struct AccessToken {
+    let value: String
+
+    func consume() {
+        print("Token usado: \(value)")
+        // No hay ninguna garantía de que esto no se llame dos veces.
+    }
+}
+
+let token = AccessToken(value: "abc123")
+token.consume()   // ok
+token.consume()   // doble uso → error lógico, el compilador calla
+let copy = token
+copy.consume()    // triple uso → nadie lo detecta
+// Los bugs aparecen en runtime: doble cierre, doble pago, token expirado...</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — ~Copyable + consuming</h2>
+    <p>~Copyable suprime la copia. Una vez que consumes el valor, el compilador sabe que ya no existe. Intentar usarlo de nuevo es un error de compilación.</p>
+    <p class="code-label after">Swift 6.x — la solución</p>
+    <pre><code class="language-swift">// ~Copyable: este tipo no se puede duplicar
+struct AccessToken: ~Copyable {
+    let value: String
+
+    // consuming: la función toma ownership y destruye el valor al salir
+    consuming func consume() {
+        print("Token usado: \(value)")
+        // Al salir, self se destruye. No hay doble uso posible.
+    }
+}
+
+let token = AccessToken(value: "abc123")
+token.consume()   // ✓ el token pasa a la función y se destruye
+
+// token.consume()   ← ERROR de compilación
+//                   'token' used after consume
+// let copy = token  ← ERROR de compilación
+//                   cannot copy noncopyable type 'AccessToken'</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> El bug de "usar un recurso dos veces" pasa de ser un error de runtime (crash a las 3am) a ser un error de compilación (antes de ejecutar ni una línea).</p>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Protocolos con ~Copyable</h2>
+    <p>~Copyable en un protocolo no contagia a los conformantes — solo abre la puerta para que tipos no copiables puedan conformarlo. Cada tipo decide individualmente si es copiable o no.</p>
+    <p class="code-label after">Swift 6.x — protocolos</p>
+    <pre><code class="language-swift">// ~Copyable en el protocolo = "acepto copiables Y no copiables"
+// Sin ~Copyable = "solo acepto copiables" (Coffee no podría conformarlo)
+protocol Drinkable: ~Copyable {
+    consuming func use()
+}
+
+struct Coffee: Drinkable, ~Copyable {  // no copiable
+    let brand: String
+    consuming func use() { print("☕ \(brand)") }
+}
+
+struct Water: Drinkable {  // copiable (por defecto)
+    consuming func use() { print("💧") }
+}
+
+// consuming some Drinkable &amp; ~Copyable = acepta ambos
+func drink(item: consuming some Drinkable &amp; ~Copyable) {
+    item.use()
+}</code></pre>
+
+    <table class="rule-table">
+      <thead><tr><th>Palabra clave</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td>~Copyable</td><td>el tipo no se puede duplicar, solo transferir</td></tr>
+        <tr><td>consuming</td><td>la función toma ownership, el caller ya no puede usar el valor</td></tr>
+        <tr><td>borrowing</td><td>la función lee el valor sin tomarlo, el caller lo recupera</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <nav class="pagination">
+    <a href="typed-throws.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      Typed throws
+    </a>
+    <a href="productivity.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      Productividad →
+    </a>
+  </nav>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swift 6 · Guía Práctica para iOS</title>
+<meta name="description" content="Los cambios de Swift 6.0 → 6.3 explicados sencillo, con ejemplos antes/después y el razonamiento detrás de cada novedad.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="#swift60">Swift 6.0</a></li>
+    <li><a href="#swift61">Swift 6.1</a></li>
+    <li><a href="#swift62">Swift 6.2</a></li>
+    <li><a href="#swift63">Swift 6.3</a></li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <div class="hero__glow"></div>
+  <div class="hero__glow-2"></div>
+  <p class="hero__eyebrow">Guía práctica · iOS Developer</p>
+  <h1 class="hero__title">Swift 6.0<br><span>→ 6.3</span></h1>
+  <p class="hero__sub">Los cambios importantes, explicados sencillo. Con ejemplos antes/después y el razonamiento detrás de cada novedad.</p>
+</section>
+
+<div id="swift60" class="index-section fade-in">
+  <p class="version-label">Swift 6.0 · septiembre 2024</p>
+  <div class="cards">
+    <a class="card" href="actor.html">
+      <span class="card__badge">Concurrencia</span>
+      <p class="card__title">Actor · Strict Concurrency</p>
+      <p class="card__desc">Los data races pasan de ser crashes en producción a errores de compilación. Adiós a DispatchQueue como red de seguridad.</p>
+    </a>
+    <a class="card" href="mutex.html">
+      <span class="card__badge">Concurrencia</span>
+      <p class="card__title">Mutex · Synchronization</p>
+      <p class="card__desc">Un lock oficial en Swift donde el dato vive dentro del lock. Imposible olvidarse de adquirirlo.</p>
+    </a>
+    <a class="card" href="typed-throws.html">
+      <span class="card__badge">Manejo de errores</span>
+      <p class="card__title">Typed throws</p>
+      <p class="card__desc">Las funciones declaran exactamente qué tipo de error lanzan. El catch recibe el tipo concreto, sin casting.</p>
+    </a>
+    <a class="card" href="ownership.html">
+      <span class="card__badge">Tipos</span>
+      <p class="card__title">Ownership · ~Copyable</p>
+      <p class="card__desc">Tipos que no se pueden duplicar. El compilador garantiza que un recurso se usa una sola vez.</p>
+    </a>
+    <a class="card" href="productivity.html">
+      <span class="card__badge">Productividad</span>
+      <p class="card__title">count(where:) · Pack iteration · Int128</p>
+      <p class="card__desc">Tres cosas que hacías con más código. Ahora en la librería estándar.</p>
+    </a>
+  </div>
+</div>
+
+<div id="swift61" class="index-section fade-in">
+  <p class="version-label">Swift 6.1 · marzo 2025</p>
+  <div class="cards">
+    <a class="card" href="nonisolated.html">
+      <span class="card__badge">Concurrencia</span>
+      <p class="card__title">nonisolated extension</p>
+      <p class="card__desc">Una sola declaración para toda la extensión en lugar de repetir nonisolated en cada método.</p>
+    </a>
+    <a class="card" href="task-groups.html">
+      <span class="card__badge">Concurrencia</span>
+      <p class="card__title">Task groups · Trailing commas</p>
+      <p class="card__desc">El compilador infiere el tipo en task groups. Trailing comma válida en argumentos y tuplas.</p>
+    </a>
+  </div>
+</div>
+
+<div id="swift62" class="index-section fade-in">
+  <p class="version-label">Swift 6.2 · septiembre 2025</p>
+  <div class="cards">
+    <a class="card" href="concurrency.html">
+      <span class="card__badge">Concurrencia</span>
+      <p class="card__title">Approachable Concurrency · @concurrent</p>
+      <p class="card__desc">@concurrent declara explícitamente dónde corre una función. Named tasks visibles en Instruments.</p>
+    </a>
+    <a class="card" href="observable.html">
+      <span class="card__badge">UI · Estado</span>
+      <p class="card__title">@Observable · Observations</p>
+      <p class="card__desc">De ObservableObject + @Published + Cancellable a una sola macro. Sin Combine.</p>
+    </a>
+  </div>
+</div>
+
+<div id="swift63" class="index-section fade-in">
+  <p class="version-label">Swift 6.3 · marzo 2026</p>
+  <div class="cards">
+    <a class="card" href="optimizations.html">
+      <span class="card__badge">Performance</span>
+      <p class="card__title">@specialize · @inline</p>
+      <p class="card__desc">Hints al compilador para código crítico. Especialización de genéricos e inlining controlado.</p>
+    </a>
+  </div>
+</div>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Actualizado mayo 2026</p>
+  <a href="https://swift.org" target="_blank" rel="noopener">Swift.org →</a>
+</footer>
+
+<script>
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

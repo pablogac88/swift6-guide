@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Actor · Strict Concurrency · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="index.html">Anterior</a></li>
+    <li><a href="mutex.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.0</span>
+    <h1>Actor · Strict Concurrency</h1>
+    <p class="intro">Los data races pasan de ser crashes en producción a errores en tiempo de compilación. El actor reemplaza a DispatchQueue con garantías verificadas por el compilador.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>El problema — DispatchQueue como acuerdo de honor</h2>
+    <p>En Swift 5, proteger estado mutable compartido era responsabilidad tuya. Usabas una DispatchQueue y rezabas para no olvidarte de ella en ningún acceso. El compilador no sabía nada de queues y no podía ayudarte.</p>
+    <p class="code-label before">Swift 5.x — el problema</p>
+    <pre><code class="language-swift">class ImageCache {
+    private var storage: [URL: Data] = [:]
+    private let queue = DispatchQueue(
+        label: "image-cache",
+        attributes: .concurrent
+    )
+
+    func data(for url: URL) -> Data? {
+        queue.sync { storage[url] }
+    }
+
+    func insert(_ data: Data, for url: URL) {
+        queue.async(flags: .barrier) {
+            self.storage[url] = data
+        }
+    }
+
+    // Cualquier función nueva que olvidara la queue...
+    func invalidate(url: URL) {
+        storage.removeValue(forKey: url) // ← race silencioso
+        // El compilador no dice nada. El bug aparece a las 3am.
+    }
+}</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>La solución — actor</h2>
+    <p>Un actor serializa automáticamente todos los accesos a su estado. No hay queue que recordar. El compilador obliga a usar await en cada acceso externo — si intentas saltártelo, es un error de compilación, no un crash en producción.</p>
+    <p class="code-label after">Swift 6.x — la solución</p>
+    <pre><code class="language-swift">actor ImageCache {
+    private var storage: [URL: Data] = [:]
+
+    func data(for url: URL) -> Data? {
+        storage[url]
+    }
+
+    func insert(_ data: Data, for url: URL) {
+        storage[url] = data
+    }
+
+    func invalidate(url: URL) {
+        storage.removeValue(forKey: url) // ✓ seguro, estamos dentro del actor
+    }
+}
+
+// En el sitio de llamada, await hace explícito el cruce de contexto
+let cache = ImageCache()
+await cache.insert(data, for: url)
+let cached = await cache.data(for: url)
+// Sin await → error de compilación. Imposible olvidarse.</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> El actor hace lo mismo que DispatchQueue pero con garantías en tiempo de compilación. El await no es solo sintaxis — es el compilador diciéndote "aquí cruzas al contexto del actor".</p>
+  </div>
+
+  <div class="block fade-in">
+    <h2>¿Por qué importa para iOS?</h2>
+    <p>En apps iOS, los singletons, view models, routers y managers son los candidatos naturales. En lugar de DispatchQueue.main.async para tapar problemas de aislamiento, marca el tipo con @MainActor o conviértelo en actor. El compilador te guiará.</p>
+  </div>
+
+  <nav class="pagination">
+    <a href="index.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      Inicio
+    </a>
+    <a href="mutex.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      Mutex · Synchronization →
+    </a>
+  </nav>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>
