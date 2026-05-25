@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Span&lt;T&gt; · Vistas seguras de buffer · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="inline-array.html">Anterior</a></li>
+    <li><a href="mainactor-default.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.2</span>
+    <h1>Span&lt;T&gt; · Vistas seguras de buffer</h1>
+    <p class="intro">Acceso a buffers de memoria sin copiar ni tomar ownership. La alternativa segura a UnsafeBufferPointer.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>Antes — UnsafeBufferPointer: funcional pero peligroso</h2>
+    <p>Para leer un buffer sin copiarlo necesitabas UnsafeBufferPointer — unsafe por nombre y por naturaleza. Nada impedía que el puntero apuntara a memoria liberada, y nada impedía acceder fuera de rango en builds de Release.</p>
+    <p class="code-label before">Swift 5.x — el problema</p>
+    <pre><code class="language-swift">// Swift 5.x — UnsafeBufferPointer: funciona pero es unsafe
+func processPixels(_ ptr: UnsafeBufferPointer&lt;UInt8>) {
+    // Nada impide que ptr.baseAddress apunte a memoria liberada
+    // Nada impide acceder fuera de rango en Release
+    for i in 0..&lt;ptr.count {
+        _ = ptr[i]
+    }
+}</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — Span&lt;T&gt;: vista sin ownership, con límites</h2>
+    <p><code>Span&lt;T&gt;</code> es una vista no-owning con límites verificados. El compilador garantiza, mediante dependencias de lifetime, que el buffer origen vive mientras el Span existe. Sin copias, sin ownership, con seguridad.</p>
+    <p class="code-label after">Swift 6.2 — la solución</p>
+    <pre><code class="language-swift">// Swift 6.2 — Span<T>: sin ownership, con límites, sin copias
+func processPixels(_ span: Span&lt;UInt8>) {
+    // Acceso indexado verificado
+    // El compilador garantiza que el buffer origen vive aquí
+    for i in 0..&lt;span.count {
+        _ = span[i]
+    }
+}
+
+// Crear un Span desde un Array (cero copias)
+var pixels: [UInt8] = loadImageData()
+pixels.withUnsafeBufferPointer { buffer in
+    let span = Span(buffer)
+    processPixels(span)
+}
+
+// RawSpan: para buffers sin tipo concreto (bytes crudos)
+func parseHeader(_ raw: RawSpan) -> UInt32 {
+    raw.loadUnaligned(fromByteOffset: 0, as: UInt32.self)
+}</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> Span es non-escaping por diseño — no puedes guardarlo más allá de su contexto. Esto es exactamente lo que garantiza que el buffer origen siempre vive mientras lo usas. Es el puente entre Swift seguro y código de alto rendimiento.</p>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Span vs Array vs UnsafeBufferPointer</h2>
+    <p>Cada uno tiene su lugar. Span cubre el hueco entre la seguridad de Array y el rendimiento de UnsafeBufferPointer.</p>
+
+    <table class="rule-table">
+      <thead><tr><th></th><th>Array</th><th>Span&lt;T&gt;</th><th>UnsafeBufferPointer</th></tr></thead>
+      <tbody>
+        <tr><td>Ownership</td><td>sí, owning</td><td>no, vista</td><td>no, puntero</td></tr>
+        <tr><td>Copias</td><td>copia al pasar</td><td>cero copias</td><td>cero copias</td></tr>
+        <tr><td>Seguridad</td><td>total</td><td>límites verificados</td><td>ninguna</td></tr>
+        <tr><td>Escaping</td><td>sí</td><td>no (non-escaping)</td><td>sí (peligroso)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <a href="inline-array.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      InlineArray&lt;N, T&gt; · Stack array
+    </a>
+    <a href="mainactor-default.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      @MainActor por defecto →
+    </a>
+  </div>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

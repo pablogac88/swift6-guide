@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>~Copyable en genéricos · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="lifetime.html">Anterior</a></li>
+    <li><a href="index.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.3</span>
+    <h1>~Copyable en genéricos · Sin restricciones</h1>
+    <p class="intro">En Swift 6.0, ~Copyable tenía fricciones con genéricos y protocolos. Swift 6.3 lo generaliza: tipos non-copyable pueden participar en código genérico sin workarounds.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>Antes — ~Copyable se "perdía" en código genérico</h2>
+    <p>En Swift 6.0, no podías usar ~Copyable como parámetro de tipo genérico directamente. Los protocolos que conformaban ~Copyable tenían limitaciones en cómo podías usarlos en funciones genéricas. Útil en tipos concretos, frustrante en abstracciones.</p>
+    <p class="code-label before">Swift 6.0 — el problema</p>
+    <pre><code class="language-swift">// Swift 6.0 — limitaciones con ~Copyable en genéricos
+// Esto NO compilaba en 6.0:
+func transfer&lt;T: ~Copyable>(_ value: consuming T) -> T {
+    value  // error: ~Copyable en genérico no soportado completamente
+}</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — ~Copyable en genéricos funciona</h2>
+    <p>Las funciones genéricas pueden declarar <code>&lt;T: ~Copyable&gt;</code>. Los protocolos pueden conformar ~Copyable. Optional, Result y los algoritmos de la librería estándar entienden tipos non-copyable.</p>
+    <p class="code-label after">Swift 6.3 — la solución</p>
+    <pre><code class="language-swift">// Swift 6.3 — ~Copyable en genéricos funciona
+func transfer&lt;T: ~Copyable>(_ value: consuming T) -> T {
+    value  // ✓
+}
+
+// Protocolo con ~Copyable generalizado
+protocol Resource: ~Copyable {
+    consuming func release()
+}
+
+struct GPUBuffer: Resource, ~Copyable {
+    let id: UInt32
+    consuming func release() {
+        // liberar recurso GPU exactamente una vez
+        print("Liberando buffer GPU \(id)")
+    }
+}
+
+// Función genérica que acepta cualquier Resource ~Copyable
+func useAndRelease&lt;R: Resource & ~Copyable>(_ resource: consuming R) {
+    resource.release()
+    // El compilador verifica que no usamos `resource` después
+}
+
+// La librería estándar también:
+// Optional&lt;T: ~Copyable>, Result&lt;T: ~Copyable, E>
+let buffer: GPUBuffer? = GPUBuffer(id: 42)
+if let b = consume buffer {
+    useAndRelease(b)
+}</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> En Swift 6.0, ~Copyable era útil en tipos concretos pero se "perdía" al entrar en código genérico. Swift 6.3 cierra esa brecha. Especialmente importante para tipos que representan recursos únicos: handles de fichero, conexiones, buffers GPU.</p>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Tipos que se benefician de ~Copyable en genéricos</h2>
+    <p>Los recursos que deben liberarse exactamente una vez son los candidatos naturales. ~Copyable en genéricos permite escribir abstracciones sobre ellos sin sacrificar las garantías.</p>
+
+    <table class="rule-table">
+      <thead><tr><th>Tipo de recurso</th><th>Garantía con ~Copyable</th></tr></thead>
+      <tbody>
+        <tr><td>FileDescriptor</td><td>se cierra exactamente una vez, no se puede duplicar accidentalmente</td></tr>
+        <tr><td>GPUBuffer</td><td>se libera exactamente una vez, sin double-free</td></tr>
+        <tr><td>NetworkConnection</td><td>se cierra exactamente una vez, sin múltiples cierres</td></tr>
+        <tr><td>CryptoKey</td><td>no se puede copiar accidentalmente a contextos inseguros</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <a href="lifetime.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      @lifetime · Tiempo de vida
+    </a>
+    <a href="index.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      Inicio →
+    </a>
+  </div>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

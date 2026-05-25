@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InlineArray&lt;N, T&gt; · Array en el stack · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="observable.html">Anterior</a></li>
+    <li><a href="span.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.2</span>
+    <h1>InlineArray&lt;N, T&gt; · Array en el stack</h1>
+    <p class="intro">Un array de tamaño fijo que vive en el stack, sin heap, sin ARC. Cuando sabes exactamente cuántos elementos tienes.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>Antes — no había arrays de tamaño fijo cómodos</h2>
+    <p>Array en Swift siempre vive en heap. Para tamaños fijos la única opción cómoda era una tupla, pero las tuplas son incómodas de iterar, de indexar, e imposibles de usar en genéricos. <code>reserveCapacity</code> tampoco ayuda: es una sugerencia al runtime, no una garantía en compilación.</p>
+    <p class="code-label before">Swift 5.x — el problema</p>
+    <pre><code class="language-swift">// Swift 5.x — necesitabas tuplas para tamaño fijo en stack
+typealias Matrix4x4 = (
+    Float, Float, Float, Float,
+    Float, Float, Float, Float,
+    Float, Float, Float, Float,
+    Float, Float, Float, Float
+)
+// Incómodo de iterar, de indexar, imposible en genéricos</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — InlineArray&lt;N, T&gt;</h2>
+    <p>El N es parte del tipo. El compilador lo conoce en compilación, puede verificar límites, y el array completo vive en el stack. Cero allocations en heap, cero ARC.</p>
+    <p class="code-label after">Swift 6.2 — la solución</p>
+    <pre><code class="language-swift">// Swift 6.2 — InlineArray: tamaño fijo, vive en el stack
+var matrix: InlineArray&lt;16, Float> = .init(repeating: 0)
+matrix[0] = 1.0
+matrix[5] = 1.0   // diagonal de identidad
+
+// El tipo lleva el tamaño — el compilador verifica límites
+func initIdentity() -> InlineArray&lt;16, Float> {
+    var m = InlineArray&lt;16, Float>(repeating: 0)
+    m[0] = 1; m[5] = 1; m[10] = 1; m[15] = 1
+    return m
+}
+
+// Útil en kernels de imagen, audio, ML inference
+struct AudioFrame: BitwiseCopyable {
+    var samples: InlineArray&lt;512, Float>
+}
+// Cero allocations, cero ARC, stack puro</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> Ideal para Metal, CoreAudio y ML donde procesas frames de tamaño conocido. Combina bien con BitwiseCopyable. La diferencia con Array: InlineArray no puede crecer, pero a cambio tiene cero overhead de heap.</p>
+  </div>
+
+  <div class="block fade-in">
+    <h2>InlineArray vs Array</h2>
+    <p>No es un reemplazo de Array. Es la herramienta correcta cuando el tamaño es fijo y conocido en compilación, y cuando el rendimiento importa.</p>
+
+    <table class="rule-table">
+      <thead><tr><th></th><th>Array</th><th>InlineArray&lt;N, T&gt;</th></tr></thead>
+      <tbody>
+        <tr><td>Tamaño</td><td>dinámico, crece</td><td>fijo, conocido en compilación</td></tr>
+        <tr><td>Memoria</td><td>heap</td><td>stack</td></tr>
+        <tr><td>ARC</td><td>sí</td><td>no (con tipos BitwiseCopyable)</td></tr>
+        <tr><td>Allocations</td><td>al menos una</td><td>ninguna</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <a href="observable.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      @Observable · Observations
+    </a>
+    <a href="span.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      Span&lt;T&gt; · Vistas de buffer →
+    </a>
+  </div>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

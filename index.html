@@ -40,6 +40,16 @@
       <p class="card__title">Mutex · Synchronization</p>
       <p class="card__desc">Un lock oficial en Swift donde el dato vive dentro del lock. Imposible olvidarse de adquirirlo.</p>
     </a>
+    <a class="card" href="sending.html">
+      <span class="card__badge">Concurrencia</span>
+      <p class="card__title">sending · Fronteras de actores</p>
+      <p class="card__desc">Transfiere un valor a otro actor garantizando que nadie más lo retiene. Sin Sendable obligatorio.</p>
+    </a>
+    <a class="card" href="atomic.html">
+      <span class="card__badge">Concurrencia</span>
+      <p class="card__title">Atomic&lt;T&gt; · Synchronization</p>
+      <p class="card__desc">Operaciones atómicas nativas para contadores, flags y referencias. Más ligero que Mutex para operaciones simples.</p>
+    </a>
     <a class="card" href="typed-throws.html">
       <span class="card__badge">Manejo de errores</span>
       <p class="card__title">Typed throws</p>
@@ -49,6 +59,11 @@
       <span class="card__badge">Tipos</span>
       <p class="card__title">Ownership · ~Copyable</p>
       <p class="card__desc">Tipos que no se pueden duplicar. El compilador garantiza que un recurso se usa una sola vez.</p>
+    </a>
+    <a class="card" href="bitcopyable.html">
+      <span class="card__badge">Tipos</span>
+      <p class="card__title">BitwiseCopyable · Copia sin ARC</p>
+      <p class="card__desc">Marca tipos que se copian bit a bit, sin ARC ni destructores. Esencial para Metal, CoreAudio y buffers de alto rendimiento.</p>
     </a>
     <a class="card" href="productivity.html">
       <span class="card__badge">Productividad</span>
@@ -87,6 +102,21 @@
       <p class="card__title">@Observable · Observations</p>
       <p class="card__desc">De ObservableObject + @Published + Cancellable a una sola macro. Sin Combine.</p>
     </a>
+    <a class="card" href="inline-array.html">
+      <span class="card__badge">Tipos</span>
+      <p class="card__title">InlineArray&lt;N, T&gt; · Stack array</p>
+      <p class="card__desc">Array de tamaño fijo en el stack. Cero allocations, cero ARC. Cuando sabes exactamente cuántos elementos tienes.</p>
+    </a>
+    <a class="card" href="span.html">
+      <span class="card__badge">Performance</span>
+      <p class="card__title">Span&lt;T&gt; · Vistas de buffer</p>
+      <p class="card__desc">Acceso seguro a buffers sin copiar ni tomar ownership. La alternativa segura a UnsafeBufferPointer.</p>
+    </a>
+    <a class="card" href="mainactor-default.html">
+      <span class="card__badge">Concurrencia</span>
+      <p class="card__title">@MainActor por defecto</p>
+      <p class="card__desc">Todo el módulo en MainActor por defecto. Solo opt-out con @concurrent. El modelo que ya usas en iOS, ahora verificado.</p>
+    </a>
   </div>
 </div>
 
@@ -97,6 +127,16 @@
       <span class="card__badge">Performance</span>
       <p class="card__title">@specialize · @inline</p>
       <p class="card__desc">Hints al compilador para código crítico. Especialización de genéricos e inlining controlado.</p>
+    </a>
+    <a class="card" href="lifetime.html">
+      <span class="card__badge">Tipos</span>
+      <p class="card__title">@lifetime · Tiempo de vida</p>
+      <p class="card__desc">Declara que un valor no puede vivir más que otro. La pieza que une ~Copyable y Span en código genérico.</p>
+    </a>
+    <a class="card" href="noncopyable-generics.html">
+      <span class="card__badge">Tipos</span>
+      <p class="card__title">~Copyable en genéricos</p>
+      <p class="card__desc">En 6.3, los tipos non-copyable participan en código genérico sin restricciones. Optional, Result y algoritmos lo entienden.</p>
     </a>
   </div>
 </div>

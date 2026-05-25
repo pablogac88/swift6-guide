@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atomic&lt;T&gt; · Synchronization · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="sending.html">Anterior</a></li>
+    <li><a href="bitcopyable.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.0</span>
+    <h1>Atomic&lt;T&gt; · Synchronization</h1>
+    <p class="intro">Operaciones atómicas en Swift puro. Para contadores, flags y referencias que necesitan acceso seguro sin un lock completo.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>Antes — sin atómicos nativos</h2>
+    <p>Swift no tenía atómicos nativos. Para algo tan simple como incrementar un contador de forma thread-safe necesitabas OSAtomicAdd32 de C, una DispatchQueue serial, o un NSLock. Todo era verboso, o dependía de APIs de bajo nivel, o inseguro.</p>
+    <p class="code-label before">Swift 5.x — el problema</p>
+    <pre><code class="language-swift">// Swift 5.x — contador thread-safe con DispatchQueue
+final class RequestCounter {
+    private var _count = 0
+    private let queue = DispatchQueue(label: "counter")
+
+    func increment() {
+        queue.sync { _count += 1 }
+    }
+
+    var count: Int {
+        queue.sync { _count }
+    }
+}</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — Atomic&lt;T&gt; del módulo Synchronization</h2>
+    <p>El módulo <code>Synchronization</code> trae <code>Atomic&lt;Int&gt;</code> con operaciones de hardware. <code>.load(ordering:)</code>, <code>.store(_:ordering:)</code>, <code>.add(_:ordering:)</code>. Más ligero que Mutex para operaciones simples porque no necesita un lock.</p>
+    <p class="code-label after">Swift 6.0 — la solución</p>
+    <pre><code class="language-swift">import Synchronization
+
+// Swift 6.0 — Atomic<Int> del módulo Synchronization
+final class RequestCounter: Sendable {
+    // Atomic almacena el valor con garantías de hardware
+    private let _count = Atomic&lt;Int>(0)
+
+    func increment() {
+        // .relaxed para contadores donde el orden exacto no importa
+        _count.add(1, ordering: .relaxed)
+    }
+
+    var count: Int {
+        _count.load(ordering: .acquiring)
+    }
+}
+
+// Uso natural, sin queues ni locks visibles
+let counter = RequestCounter()
+// En varios Tasks concurrentes:
+counter.increment()
+print(counter.count)  // siempre correcto</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>Mutex vs Atomic:</strong> Usa Mutex para operaciones compuestas (leer-modificar-escribir con lógica propia). Usa Atomic para operaciones simples como incrementar, comparar o intercambiar. Atomic es más rápido pero solo cubre tipos básicos: Int, Bool, punteros.</p>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Cuándo usar cada uno</h2>
+    <p>La elección depende de la complejidad de la operación. Para un contador, Atomic. Para un diccionario que lees y modificas con condiciones, Mutex.</p>
+
+    <table class="rule-table">
+      <thead><tr><th>Herramienta</th><th>Cuándo</th></tr></thead>
+      <tbody>
+        <tr><td>Atomic&lt;T&gt;</td><td>operaciones simples: incrementar, comparar, intercambiar. Tipos básicos. Máximo rendimiento.</td></tr>
+        <tr><td>Mutex&lt;T&gt;</td><td>operaciones compuestas con lógica propia, cualquier tipo, incluyendo colecciones.</td></tr>
+        <tr><td>actor</td><td>código async de app, cuando necesitas await entre operaciones.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <a href="sending.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      sending · Fronteras de actores
+    </a>
+    <a href="bitcopyable.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      BitwiseCopyable · Copia sin ARC →
+    </a>
+  </div>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

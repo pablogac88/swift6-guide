@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sending · Cruzar fronteras de actores · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="mutex.html">Anterior</a></li>
+    <li><a href="atomic.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.0</span>
+    <h1>sending · Cruzar fronteras de actores</h1>
+    <p class="intro">La palabra clave que permite pasar un valor a otro actor garantizando que nadie más lo retiene. Sin necesidad de conformar Sendable.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>Antes — el compilador no podía verificar la transferencia</h2>
+    <p>En Swift 5, pasabas objetos entre actores y el compilador no sabía si alguien más los retenía. Para cruzar fronteras de actores necesitabas conformar Sendable, lo que requería o bien un trabajo manual considerable o bien hacer trampa con @unchecked Sendable.</p>
+    <p class="code-label before">Swift 5.x — el problema</p>
+    <pre><code class="language-swift">// Swift 5.x — el compilador no podía verificar esto
+actor DataProcessor {
+    func process(_ data: LargeData) async {
+        // ¿Está data siendo usada desde otro contexto? No se sabe.
+        await heavyWork(data)
+    }
+}
+
+// Había que conformar Sendable (o @unchecked Sendable haciendo trampa)
+class LargeData: @unchecked Sendable {
+    var buffer: [UInt8]
+    init(_ buffer: [UInt8]) { self.buffer = buffer }
+}</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — sending garantiza transferencia exclusiva</h2>
+    <p>Con <code>sending</code> en el parámetro, el caller le promete al compilador que transfiere la propiedad exclusiva del valor. El compilador verifica que nadie más retiene ese valor tras la llamada. No hace falta conformar Sendable.</p>
+    <p class="code-label after">Swift 6.0 — la solución</p>
+    <pre><code class="language-swift">// Swift 6.0 — `sending` garantiza transferencia exclusiva
+actor DataProcessor {
+    // `sending` = el caller promete que nadie más retiene `data`
+    // tras la llamada. El compilador lo verifica.
+    func process(_ data: sending LargeData) async {
+        await heavyWork(data)
+    }
+}
+
+// Ya no necesita ser Sendable
+class LargeData {
+    var buffer: [UInt8]
+    init(_ buffer: [UInt8]) { self.buffer = buffer }
+}
+
+// Uso correcto: tras pasarlo, no puedes usarlo más
+let processor = DataProcessor()
+let myData = LargeData([1, 2, 3])
+await processor.process(myData)
+// myData ya no accesible aquí — el compilador lo garantiza</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> <code>sending</code> es diferente de <code>Sendable</code>. <code>Sendable</code> dice "este tipo es seguro para compartir en concurrencia". <code>sending</code> dice "este valor concreto lo transfiero en exclusiva, pase lo que pase con el tipo".</p>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Reglas de sending</h2>
+    <p>sending puede aparecer en parámetros y en resultados. En cada caso el contrato es distinto: quien llama pierde el acceso, o quien devuelve transfiere la propiedad.</p>
+
+    <table class="rule-table">
+      <thead><tr><th>Posición</th><th>Contrato</th></tr></thead>
+      <tbody>
+        <tr><td>sending en parámetro</td><td>el caller pierde el acceso al valor tras la llamada</td></tr>
+        <tr><td>sending en resultado</td><td>el callee transfiere la propiedad exclusiva al caller</td></tr>
+        <tr><td>sin sending</td><td>el tipo necesita conformar Sendable para cruzar fronteras</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <a href="mutex.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      Mutex · Synchronization
+    </a>
+    <a href="atomic.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      Atomic&lt;T&gt; · Synchronization →
+    </a>
+  </div>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

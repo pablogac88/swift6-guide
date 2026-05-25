@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>@MainActor por defecto · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="span.html">Anterior</a></li>
+    <li><a href="optimizations.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.2</span>
+    <h1>@MainActor por defecto · Aislamiento implícito</h1>
+    <p class="intro">En Swift 6.2 puedes declarar que todo tu módulo corre en el MainActor por defecto, y solo optar a salir con @concurrent o nonisolated. El modelo que ya usas en UIKit/SwiftUI, ahora explícito y verificado.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>Antes — anotar @MainActor manualmente en todo</h2>
+    <p>En Swift 6.0 el compilador asumía que las funciones no estaban aisladas (nonisolated por defecto). Esto forzaba a anotar manualmente con @MainActor todo lo que tocaba UI, generando mucho ruido repetitivo en los view models.</p>
+    <p class="code-label before">Swift 6.0 — el problema</p>
+    <pre><code class="language-swift">// Swift 6.0 — anotar @MainActor manualmente en todo
+@MainActor
+class ProfileViewModel: ObservableObject {
+    @MainActor func loadUser() async { ... }
+    @MainActor func updateAvatar() async { ... }
+    // repetitivo — y si olvidas uno, error de compilación en el sitio de llamada
+}</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — aislamiento por defecto del módulo</h2>
+    <p>Con <code>.defaultIsolation(MainActor.self)</code> en Package.swift, todo el módulo está en MainActor implícitamente. Para trabajo en background, optas a salir con <code>@concurrent</code>. El modelo mental correcto para apps iOS: UI en main, trabajo pesado opt-in.</p>
+    <p class="code-label after">Swift 6.2 — la solución</p>
+    <pre><code class="language-swift">// Swift 6.2 — con aislamiento por defecto en el módulo
+// En Package.swift:
+// swiftSettings: [.defaultIsolation(MainActor.self)]
+
+// Ahora todo está en @MainActor por defecto
+class ProfileViewModel {
+    func loadUser() async { ... }      // implícitamente @MainActor
+    func updateAvatar() async { ... }  // implícitamente @MainActor
+
+    // Para trabajo en background, opt-out explícito:
+    @concurrent
+    func fetchFromNetwork() async -> Data { ... }
+}</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> Activa esto en Package.swift con <code>.defaultIsolation(MainActor.self)</code>. Es un cambio de modelo: en lugar de "nonisolated hasta que demuestres lo contrario", es "MainActor hasta que necesites salir". Mucho más cercano a cómo piensa un developer iOS.</p>
+  </div>
+
+  <div class="block fade-in">
+    <h2>El modelo mental para apps iOS</h2>
+    <p>La mayoría del código de una app iOS toca UI directa o indirectamente. Hacer MainActor el default y optar a salir para trabajo pesado es la inversión correcta.</p>
+
+    <table class="rule-table">
+      <thead><tr><th>Swift 6.0</th><th>Swift 6.2 con defaultIsolation</th></tr></thead>
+      <tbody>
+        <tr><td>nonisolated por defecto</td><td>@MainActor por defecto</td></tr>
+        <tr><td>anotar @MainActor en cada método de UI</td><td>anotar @concurrent solo en background</td></tr>
+        <tr><td>mucho ruido en view models</td><td>código limpio, sin anotaciones repetitivas</td></tr>
+        <tr><td>modelo correcto para librerías</td><td>modelo correcto para apps iOS</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <a href="span.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      Span&lt;T&gt; · Vistas de buffer
+    </a>
+    <a href="optimizations.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      @specialize · @inline →
+    </a>
+  </div>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

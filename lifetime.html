@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>@lifetime · Dependencias de tiempo de vida · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="optimizations.html">Anterior</a></li>
+    <li><a href="noncopyable-generics.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.3</span>
+    <h1>@lifetime · Dependencias de tiempo de vida</h1>
+    <p class="intro">Declara que un valor no puede vivir más que otro. La pieza que une ~Copyable y Span en código genérico.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>Antes — el compilador no podía verificar la dependencia</h2>
+    <p>En Swift 6.0 y 6.1 podías usar Span y ~Copyable, pero no había forma de expresar formalmente "este Span depende de este Array". El compilador infería algunas dependencias localmente, pero en genéricos y en firmas de funciones públicas se perdía la información.</p>
+    <p class="code-label before">Sin @lifetime — dependencia no verificada</p>
+    <pre><code class="language-swift">// Sin @lifetime — el compilador no puede verificar la dependencia
+func firstSpan(_ array: [Int]) -> Span&lt;Int> {
+    // ¿Cuánto vive este Span? No está claro en la firma.
+    array.withUnsafeBufferPointer { Span($0) }
+    // Potencial dangling reference: array podría deallocarse
+}</code></pre>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Ahora — @lifetime hace la dependencia explícita</h2>
+    <p><code>@lifetime(param)</code> anota que el resultado hereda el lifetime del parámetro. El compilador verifica que el valor resultante no escapa más allá de lo que permite el parámetro del que depende.</p>
+    <p class="code-label after">Swift 6.3 — la solución</p>
+    <pre><code class="language-swift">// Swift 6.3 — @lifetime hace la dependencia explícita
+@lifetime(array)
+func firstSpan(_ array: borrowing [Int]) -> Span&lt;Int> {
+    // El resultado vive como máximo lo que vive `array`
+    // El compilador rechaza cualquier escape más allá
+    array.withUnsafeBufferPointer { Span($0) }
+}
+
+// Con ~Copyable
+struct FileHandle: ~Copyable {
+    private var fd: Int32
+
+    // La vista vive mientras vive el FileHandle
+    @lifetime(self)
+    borrowing func bytes() -> RawSpan { ... }
+}
+
+let handle = FileHandle(path: "/tmp/data")
+let view = handle.bytes()
+// `view` no puede escapar más allá del lifetime de `handle`</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> @lifetime es la columna vertebral del código de alto rendimiento en Swift 6.3. Une ~Copyable (sin copia), Span (vista sin ownership) y borrowing (sin transferencia). Juntos permiten escribir código tan eficiente como C, pero con verificaciones en compilación.</p>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Las tres piezas juntas</h2>
+    <p>~Copyable, Span y @lifetime son conceptos independientes que se potencian entre sí. Cada uno resuelve una parte del problema de código de alto rendimiento con seguridad.</p>
+
+    <table class="rule-table">
+      <thead><tr><th>Concepto</th><th>Garantiza</th></tr></thead>
+      <tbody>
+        <tr><td>~Copyable</td><td>el valor no se duplica — existe exactamente una vez</td></tr>
+        <tr><td>Span</td><td>vista sin ownership — no copia, no retiene</td></tr>
+        <tr><td>borrowing</td><td>acceso sin transferir — el caller sigue siendo el dueño</td></tr>
+        <tr><td>@lifetime</td><td>la vista no escapa más allá del dueño — sin dangling references</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <a href="optimizations.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      @specialize · @inline
+    </a>
+    <a href="noncopyable-generics.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      ~Copyable en genéricos →
+    </a>
+  </div>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

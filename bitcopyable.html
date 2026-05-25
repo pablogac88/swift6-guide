@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BitwiseCopyable · Copia sin ARC · Swift 6 Guía</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="page">
+
+<nav>
+  <a class="nav__logo" href="index.html">Swift <span>6</span> · Guía</a>
+  <ul class="nav__links">
+    <li><a href="index.html">← Todos</a></li>
+    <li><a href="atomic.html">Anterior</a></li>
+    <li><a href="typed-throws.html">Siguiente</a></li>
+  </ul>
+</nav>
+
+<main class="article-wrap">
+  <header class="article-header fade-in">
+    <span class="badge">Swift 6.0</span>
+    <h1>BitwiseCopyable · Copia sin ARC</h1>
+    <p class="intro">Un protocolo que marca tipos que se pueden copiar bit a bit, sin llamadas a ARC ni destructores. El compilador los trata como valores C planos.</p>
+  </header>
+
+  <div class="block fade-in">
+    <h2>Antes — Swift no distinguía entre tipos que necesitan ARC y los que no</h2>
+    <p>Swift no distinguía entre tipos que necesitan ARC y tipos que no. Un struct con solo Int y Bool aún podía pasar por rutas de código más lentas. Para interop con C o código de alto rendimiento, no había forma de garantizar en el sistema de tipos que un tipo era "plano".</p>
+    <p class="code-label neutral">Ejemplo</p>
+    <pre><code class="language-swift">// BitwiseCopyable: el tipo es tan simple que se puede copiar con memcpy
+struct Pixel: BitwiseCopyable {
+    var r: UInt8
+    var g: UInt8
+    var b: UInt8
+    var a: UInt8
+}
+
+// struct con solo tipos BitwiseCopyable → automáticamente BitwiseCopyable
+struct Transform: BitwiseCopyable {
+    var x: Float
+    var y: Float
+    var scale: Float
+}
+
+// String NO es BitwiseCopyable (tiene buffer en heap)
+// class NO es BitwiseCopyable (tiene conteo de referencias)
+// struct con String tampoco lo es
+
+// Uso en funciones genéricas de alto rendimiento
+func processBatch&lt;T: BitwiseCopyable>(_ items: [T]) {
+    // El compilador sabe que puede copiar T con memcpy
+    // Sin llamadas a retain/release en el loop
+    for item in items {
+        _ = item
+    }
+}</code></pre>
+  </div>
+
+  <div class="insight fade-in">
+    <p><strong>La regla:</strong> Los tipos que conforman BitwiseCopyable automáticamente son: Int, Float, Bool, Double, UInt8... y cualquier struct compuesto solo de ellos. Útil sobre todo al trabajar con Metal, CoreAudio, o buffers de red donde procesas millones de elementos.</p>
+  </div>
+
+  <div class="block fade-in">
+    <h2>Qué puede ser BitwiseCopyable y qué no</h2>
+    <p>La regla es simple: si el tipo no tiene referencias de heap ni necesita cleanup al ser destruido, puede ser BitwiseCopyable.</p>
+
+    <table class="rule-table">
+      <thead><tr><th>Tipo</th><th>BitwiseCopyable</th></tr></thead>
+      <tbody>
+        <tr><td>Int, Float, Bool, Double</td><td>✓ automáticamente</td></tr>
+        <tr><td>struct solo con Int/Float/Bool</td><td>✓ automáticamente</td></tr>
+        <tr><td>String</td><td>✗ tiene buffer en heap</td></tr>
+        <tr><td>Array, Dictionary</td><td>✗ tienen buffer en heap</td></tr>
+        <tr><td>class (cualquiera)</td><td>✗ tiene conteo de referencias</td></tr>
+        <tr><td>struct con String</td><td>✗ hereda la limitación</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <a href="atomic.html" class="prev">
+      <span class="pagination__label">Anterior</span>
+      Atomic&lt;T&gt; · Synchronization
+    </a>
+    <a href="typed-throws.html" class="next">
+      <span class="pagination__label">Siguiente</span>
+      Typed throws →
+    </a>
+  </div>
+</main>
+
+<footer>
+  <p>Swift 6.0 → 6.3 · Guía práctica</p>
+  <a href="index.html">← Inicio</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  const obs = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>
